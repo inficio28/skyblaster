@@ -5,125 +5,123 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>SKY BLASTER</title>
 <style>
-*{margin:0;padding:0;box-sizing:border-box;}
-body{
-  background:#050a14;
-  display:flex;
-  flex-direction:column;
-  align-items:center;
-  justify-content:center;
-  min-height:100vh;
-  font-family:monospace;
-  color:#fff;
-  overflow:hidden;
-  touch-action:none;
-  user-select:none;
+* { margin:0; padding:0; box-sizing:border-box; }
+body {
+  background: #050a14;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  font-family: monospace;
+  color: #fff;
+  overflow: hidden;
+  touch-action: none;
+  user-select: none;
 }
-#wrapper{
-  display:flex;
-  flex-direction:column;
-  width:min(440px, 98vw);
+#wrapper {
+  display: flex;
+  flex-direction: column;
+  width: min(440px, 98vw);
 }
-#hud{
-  display:flex;
-  justify-content:space-between;
-  padding:6px 12px;
-  background:#000;
-  border:2px solid #00d4ff;
-  border-bottom:none;
-  font-size:13px;
-  letter-spacing:2px;
+#hud {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 5px 10px;
+  background: #000;
+  border: 2px solid #00d4ff;
+  border-bottom: none;
+  font-size: 13px;
+  letter-spacing: 2px;
 }
-.hl{color:#00d4ff;}
-.hv{color:#ffe600;font-weight:bold;}
-/* THE FIX: use aspect-ratio so the canvas container always has height */
-#cWrap{
-  position:relative;
-  width:100%;
-  aspect-ratio: 440 / 580;
-  background:#050a14;
-  border:2px solid #00d4ff;
-  overflow:hidden;
+.hl { color: #00d4ff; }
+.hv { color: #ffe600; font-weight: bold; }
+#btnQuit {
+  padding: 3px 10px;
+  border: 1px solid #ff2d78;
+  background: transparent;
+  color: #ff2d78;
+  font-size: 11px;
+  letter-spacing: 1px;
+  border-radius: 3px;
+  cursor: pointer;
+  font-family: monospace;
+  transition: background 0.1s;
 }
-canvas{
-  position:absolute;
-  top:0; left:0;
-  width:100%;
-  height:100%;
+#btnQuit:hover, #btnQuit:active { background: rgba(255,45,120,0.18); }
+#cWrap {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 440 / 600;
+  border: 2px solid #00d4ff;
+  overflow: hidden;
+  background: #050a14;
+  cursor: crosshair;
 }
-#pad{
-  display:grid;
-  grid-template-columns:1fr 1fr 1fr 1fr 1.5fr;
-  gap:4px;
-  padding:6px;
-  background:#000;
-  border:2px solid #00d4ff;
-  border-top:none;
+#c {
+  position: absolute;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  display: block;
 }
-.btn{
-  padding:10px 0;
-  border:1px solid #00d4ff;
-  background:rgba(0,212,255,.08);
-  color:#00d4ff;
-  font-size:20px;
-  border-radius:4px;
-  cursor:pointer;
-  text-align:center;
-  -webkit-tap-highlight-color:transparent;
+#touchHint {
+  display: none;
+  padding: 5px 12px;
+  background: #000;
+  border: 2px solid #00d4ff;
+  border-top: none;
+  font-size: 11px;
+  color: #555;
+  letter-spacing: 1px;
+  text-align: center;
 }
-.btn:active, .btn.on{
-  background:rgba(0,212,255,.28);
-  box-shadow:0 0 10px #00d4ff;
+@media (pointer: coarse) { #touchHint { display: block; } }
+.ov {
+  position: absolute;
+  inset: 0;
+  background: rgba(4,8,18,.92);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  padding: 20px;
+  text-align: center;
+  z-index: 5;
 }
-#bFire{
-  border-color:#ff2d78;
-  color:#ff2d78;
-  font-size:12px;
+.ov.off { display: none; }
+.ov h1 {
+  font-size: clamp(30px, 10vw, 54px);
+  font-weight: 900;
+  color: #00d4ff;
+  text-shadow: 0 0 24px #00d4ff;
+  line-height: 1.1;
+  letter-spacing: 4px;
 }
-#bFire:active, #bFire.on{
-  background:rgba(255,45,120,.22);
-  box-shadow:0 0 10px #ff2d78;
+.ov h2 { font-size: 12px; color: #ff2d78; letter-spacing: 3px; margin-top: -6px; }
+.ov p { font-size: 12px; color: #aaa; line-height: 2.2; }
+.ov p b { color: #ffe600; }
+.ov p.touch-info { display: none; }
+@media (pointer: coarse) {
+  .ov p.keys-info  { display: none; }
+  .ov p.touch-info { display: block; }
 }
-/* overlays */
-.ov{
-  position:absolute;
-  inset:0;
-  background:rgba(4,8,18,.92);
-  display:flex;
-  flex-direction:column;
-  align-items:center;
-  justify-content:center;
-  gap:14px;
-  padding:20px;
-  text-align:center;
-  z-index:5;
+.ov button {
+  margin-top: 6px;
+  padding: 12px 36px;
+  border: 2px solid #39ff14;
+  background: transparent;
+  color: #39ff14;
+  font-size: 14px;
+  letter-spacing: 3px;
+  border-radius: 4px;
+  cursor: pointer;
+  text-shadow: 0 0 8px #39ff14;
+  font-family: monospace;
 }
-.ov.off{display:none;}
-.ov h1{
-  font-size:clamp(32px,10vw,56px);
-  font-weight:900;
-  color:#00d4ff;
-  text-shadow:0 0 24px #00d4ff;
-  line-height:1.1;
-  letter-spacing:4px;
-}
-.ov h2{font-size:13px;color:#ff2d78;letter-spacing:3px;margin-top:-6px;}
-.ov p{font-size:13px;color:#aaa;line-height:2;}
-.ov p b{color:#ffe600;}
-.ov button{
-  margin-top:8px;
-  padding:12px 36px;
-  border:2px solid #39ff14;
-  background:transparent;
-  color:#39ff14;
-  font-size:14px;
-  letter-spacing:3px;
-  border-radius:4px;
-  cursor:pointer;
-  text-shadow:0 0 8px #39ff14;
-}
-.ov button:hover{background:rgba(57,255,20,.14);}
-#finalScore{font-size:22px;color:#ffe600;text-shadow:0 0 12px #ffe600;}
+.ov button:hover { background: rgba(57,255,20,.14); }
+#finalScore { font-size: 22px; color: #ffe600; text-shadow: 0 0 12px #ffe600; }
 </style>
 </head>
 <body>
@@ -133,6 +131,7 @@ canvas{
     <div><span class="hl">SCORE </span><span class="hv" id="sScore">0</span></div>
     <div><span class="hl">LEVEL </span><span class="hv" id="sLevel">1</span></div>
     <div><span class="hl">VIES </span><span class="hv" id="sLives">3</span></div>
+    <button id="btnQuit">&#9632; QUITTER</button>
   </div>
 
   <div id="cWrap">
@@ -141,10 +140,14 @@ canvas{
     <div class="ov" id="scrStart">
       <h1>SKY<br>BLASTER</h1>
       <h2>ARCADE SHOOTER</h2>
-      <p>
+      <p class="keys-info">
         <b>Fleches</b> pour bouger<br>
-        <b>ESPACE</b> pour tirer<br>
-        <b>Mobile :</b> boutons en bas
+        <b>ESPACE</b> pour tirer
+      </p>
+      <p class="touch-info">
+        <b>Pose le doigt</b> sur l'ecran<br>
+        L'avion suit ton doigt<br>
+        <b>Tir automatique</b>
       </p>
       <button id="btnStart">JOUER</button>
     </div>
@@ -156,416 +159,605 @@ canvas{
     </div>
   </div>
 
-  <div id="pad">
-    <button class="btn" id="bLeft">&#9664;</button>
-    <button class="btn" id="bUp">&#9650;</button>
-    <button class="btn" id="bDown">&#9660;</button>
-    <button class="btn" id="bRight">&#9654;</button>
-    <button class="btn" id="bFire">FEU</button>
-  </div>
+  <div id="touchHint">GLISSE LE DOIGT &mdash; L'AVION TE SUIT</div>
 </div>
 
 <script>
-// ── Setup ─────────────────────────────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════════════════════
+//  AUDIO ENGINE  (Web Audio API — no files needed)
+// ══════════════════════════════════════════════════════════════════════════════
+var AC = null;          // AudioContext, created on first user gesture
+var musicNodes = [];    // nodes to stop on quit
+var musicPlaying = false;
+
+function getAC() {
+  if (!AC) {
+    try {
+      AC = new (window.AudioContext || window.webkitAudioContext)();
+    } catch(e) { AC = null; }
+  }
+  if (AC && AC.state === 'suspended') AC.resume();
+  return AC;
+}
+
+// ── SFX helpers ───────────────────────────────────────────────────────────────
+function playShoot() {
+  var ac = getAC(); if (!ac) return;
+  var osc = ac.createOscillator();
+  var g   = ac.createGain();
+  osc.connect(g); g.connect(ac.destination);
+  osc.type = 'square';
+  osc.frequency.setValueAtTime(880, ac.currentTime);
+  osc.frequency.exponentialRampToValueAtTime(220, ac.currentTime + 0.08);
+  g.gain.setValueAtTime(0.06, ac.currentTime);   // quiet
+  g.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + 0.09);
+  osc.start(ac.currentTime);
+  osc.stop(ac.currentTime + 0.09);
+}
+
+function playExplosion() {
+  var ac = getAC(); if (!ac) return;
+  // noise burst
+  var bufSize = ac.sampleRate * 0.18;
+  var buf = ac.createBuffer(1, bufSize, ac.sampleRate);
+  var data = buf.getChannelData(0);
+  for (var i = 0; i < bufSize; i++) data[i] = (Math.random() * 2 - 1);
+  var src = ac.createBufferSource();
+  src.buffer = buf;
+  var filter = ac.createBiquadFilter();
+  filter.type = 'bandpass';
+  filter.frequency.value = 180;
+  filter.Q.value = 0.8;
+  var g = ac.createGain();
+  src.connect(filter); filter.connect(g); g.connect(ac.destination);
+  g.gain.setValueAtTime(0.12, ac.currentTime);    // quiet
+  g.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + 0.18);
+  src.start(ac.currentTime);
+}
+
+function playHurt() {
+  var ac = getAC(); if (!ac) return;
+  var osc = ac.createOscillator();
+  var g   = ac.createGain();
+  osc.connect(g); g.connect(ac.destination);
+  osc.type = 'sawtooth';
+  osc.frequency.setValueAtTime(200, ac.currentTime);
+  osc.frequency.exponentialRampToValueAtTime(80, ac.currentTime + 0.2);
+  g.gain.setValueAtTime(0.08, ac.currentTime);
+  g.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + 0.22);
+  osc.start(ac.currentTime);
+  osc.stop(ac.currentTime + 0.22);
+}
+
+// ── Electronic music (procedural) ─────────────────────────────────────────────
+// Architecture: kick + bass arp + hi-hat + lead arp, all looped via ScriptProcessor / scheduled notes
+var musicGain = null;
+
+function startMusic() {
+  var ac = getAC(); if (!ac || musicPlaying) return;
+  musicPlaying = true;
+
+  // Master gain for music (lower than SFX)
+  musicGain = ac.createGain();
+  musicGain.gain.value = 0.18;
+  musicGain.connect(ac.destination);
+  musicNodes.push(musicGain);
+
+  var BPM   = 138;
+  var STEP  = 60 / BPM / 4;  // 16th note duration in seconds
+  var steps = 16;             // steps per bar
+
+  // ── Kick drum ──────────────────────────────────────────────────────────────
+  function scheduleKick(t) {
+    var osc = ac.createOscillator();
+    var g   = ac.createGain();
+    osc.connect(g); g.connect(musicGain);
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(150, t);
+    osc.frequency.exponentialRampToValueAtTime(40, t + 0.12);
+    g.gain.setValueAtTime(0.9, t);
+    g.gain.exponentialRampToValueAtTime(0.001, t + 0.18);
+    osc.start(t); osc.stop(t + 0.2);
+  }
+
+  // ── Snare ─────────────────────────────────────────────────────────────────
+  function scheduleSnare(t) {
+    var bufSize = Math.floor(ac.sampleRate * 0.1);
+    var buf = ac.createBuffer(1, bufSize, ac.sampleRate);
+    var d   = buf.getChannelData(0);
+    for (var i = 0; i < bufSize; i++) d[i] = Math.random() * 2 - 1;
+    var src = ac.createBufferSource(); src.buffer = buf;
+    var flt = ac.createBiquadFilter(); flt.type = 'highpass'; flt.frequency.value = 1200;
+    var g   = ac.createGain();
+    src.connect(flt); flt.connect(g); g.connect(musicGain);
+    g.gain.setValueAtTime(0.5, t);
+    g.gain.exponentialRampToValueAtTime(0.001, t + 0.1);
+    src.start(t);
+  }
+
+  // ── Hi-hat ────────────────────────────────────────────────────────────────
+  function scheduleHat(t, vol) {
+    var bufSize = Math.floor(ac.sampleRate * 0.04);
+    var buf = ac.createBuffer(1, bufSize, ac.sampleRate);
+    var d   = buf.getChannelData(0);
+    for (var i = 0; i < bufSize; i++) d[i] = Math.random() * 2 - 1;
+    var src = ac.createBufferSource(); src.buffer = buf;
+    var flt = ac.createBiquadFilter(); flt.type = 'highpass'; flt.frequency.value = 7000;
+    var g   = ac.createGain();
+    src.connect(flt); flt.connect(g); g.connect(musicGain);
+    g.gain.setValueAtTime(vol || 0.3, t);
+    g.gain.exponentialRampToValueAtTime(0.001, t + 0.04);
+    src.start(t);
+  }
+
+  // ── Bass synth ────────────────────────────────────────────────────────────
+  var bassNotes = [55, 55, 55, 55,  82, 82, 55, 55,  65, 65, 55, 55,  73, 55, 55, 55];
+  function scheduleBass(t, freq) {
+    var osc = ac.createOscillator();
+    var g   = ac.createGain();
+    var flt = ac.createBiquadFilter(); flt.type = 'lowpass'; flt.frequency.value = 400;
+    osc.connect(flt); flt.connect(g); g.connect(musicGain);
+    osc.type = 'sawtooth';
+    osc.frequency.value = freq;
+    g.gain.setValueAtTime(0.55, t);
+    g.gain.exponentialRampToValueAtTime(0.001, t + STEP * 1.8);
+    osc.start(t); osc.stop(t + STEP * 2);
+  }
+
+  // ── Lead arp ──────────────────────────────────────────────────────────────
+  var leadNotes = [
+    220, 0,  261, 0,  293, 0,  261, 0,
+    246, 0,  220, 0,    0, 0,  329, 0
+  ];
+  function scheduleLead(t, freq) {
+    if (!freq) return;
+    var osc = ac.createOscillator();
+    var g   = ac.createGain();
+    var flt = ac.createBiquadFilter(); flt.type = 'bandpass'; flt.frequency.value = freq * 2; flt.Q.value = 2;
+    osc.connect(flt); flt.connect(g); g.connect(musicGain);
+    osc.type = 'square';
+    osc.frequency.value = freq;
+    g.gain.setValueAtTime(0.18, t);
+    g.gain.exponentialRampToValueAtTime(0.001, t + STEP * 1.4);
+    osc.start(t); osc.stop(t + STEP * 1.5);
+  }
+
+  // ── Scheduler ─────────────────────────────────────────────────────────────
+  var scheduleAhead = 0.15;
+  var nextBarTime   = ac.currentTime + 0.05;
+  var barPhase      = 0;   // which bar pattern we are in (for variation)
+
+  function scheduleBar(startT) {
+    for (var s = 0; s < steps; s++) {
+      var t = startT + s * STEP;
+
+      // Kick: beat 1 and 3 (steps 0, 8) + extra on 12
+      if (s === 0 || s === 8 || s === 12) scheduleKick(t);
+      // Snare: beat 2 and 4 (steps 4, 12)
+      if (s === 4 || s === 12) scheduleSnare(t);
+      // Hi-hat every 2 steps, accent on even
+      if (s % 2 === 0) scheduleHat(t, s % 4 === 0 ? 0.35 : 0.18);
+      // Open hat on offbeats
+      if (s === 2 || s === 6 || s === 10 || s === 14) scheduleHat(t, 0.1);
+
+      // Bass on every step
+      scheduleBass(t, bassNotes[s]);
+
+      // Lead arp every bar, with variation
+      var ln = leadNotes[s];
+      if (barPhase % 2 === 1 && ln) ln *= 1.5; // octave up every other bar
+      scheduleLead(t, ln);
+    }
+    barPhase++;
+  }
+
+  function tick() {
+    if (!musicPlaying) return;
+    while (nextBarTime < ac.currentTime + scheduleAhead) {
+      scheduleBar(nextBarTime);
+      nextBarTime += steps * STEP;
+    }
+    setTimeout(tick, 50);
+  }
+  tick();
+}
+
+function stopMusic() {
+  musicPlaying = false;
+  if (musicGain) {
+    try { musicGain.gain.setValueAtTime(musicGain.gain.value, AC.currentTime);
+          musicGain.gain.exponentialRampToValueAtTime(0.001, AC.currentTime + 0.3); }
+    catch(e) {}
+  }
+  // Hard stop after fade
+  setTimeout(function() {
+    for (var i = 0; i < musicNodes.length; i++) {
+      try { musicNodes[i].disconnect(); } catch(e) {}
+    }
+    musicNodes = [];
+    musicGain  = null;
+  }, 400);
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+//  CANVAS
+// ══════════════════════════════════════════════════════════════════════════════
 var canvas = document.getElementById('c');
 var ctx    = canvas.getContext('2d');
+var W = 440, H = 600;
+canvas.width = W; canvas.height = H;
 
-// Internal resolution
-var W = 440, H = 580;
-canvas.width  = W;
-canvas.height = H;
-
-// ── Input ─────────────────────────────────────────────────────────────────────
-var K = {};
-document.addEventListener('keydown', function(e){
-  K[e.code] = true;
-  if(e.code === 'Space' || e.code.startsWith('Arrow')) e.preventDefault();
-});
-document.addEventListener('keyup', function(e){ K[e.code] = false; });
-
-var T = {left:false,right:false,up:false,down:false,fire:false};
-
-function bindBtn(id, key){
-  var el = document.getElementById(id);
-  function dn(e){ e.preventDefault(); T[key]=true;  el.classList.add('on'); }
-  function up(e){ e.preventDefault(); T[key]=false; el.classList.remove('on'); }
-  el.addEventListener('touchstart', dn, {passive:false});
-  el.addEventListener('touchend',   up, {passive:false});
-  el.addEventListener('mousedown', dn);
-  el.addEventListener('mouseup',   up);
-  el.addEventListener('mouseleave',up);
+function getScale() {
+  return W / canvas.getBoundingClientRect().width;
 }
-bindBtn('bLeft',  'left');
-bindBtn('bRight', 'right');
-bindBtn('bUp',    'up');
-bindBtn('bDown',  'down');
-bindBtn('bFire',  'fire');
 
-// ── Game variables ────────────────────────────────────────────────────────────
-var STATE = 'start';
-var score, lives, level, tick;
-var px, py, pcool, pinv;   // plane
-var bullets, enemies, sparks, stars;
+// ── Keyboard ─────────────────────────────────────────────────────────────────
+var K = {};
+document.addEventListener('keydown', function(e) {
+  K[e.code] = true;
+  if (e.code === 'Space' || e.code.indexOf('Arrow') === 0) e.preventDefault();
+  if (e.code === 'Escape') quitGame();
+});
+document.addEventListener('keyup', function(e) { K[e.code] = false; });
 
-function resetGame(){
-  score = 0; lives = 3; level = 1; tick = 0;
-  px = W/2; py = H * 0.8; pcool = 0; pinv = 0;
-  bullets  = [];
-  enemies  = [];
-  sparks   = [];
-  stars    = [];
-  for(var i=0;i<70;i++){
+// ── Touch ─────────────────────────────────────────────────────────────────────
+var touchTarget = null;
+var touchActive = false;
+var cWrap = document.getElementById('cWrap');
+
+function pageToCanvas(cx, cy) {
+  var rect = canvas.getBoundingClientRect();
+  var sc   = getScale();
+  return { x: (cx - rect.left) * sc, y: (cy - rect.top) * sc };
+}
+
+cWrap.addEventListener('touchstart', function(e) {
+  e.preventDefault();
+  var t = e.touches[0];
+  touchTarget = pageToCanvas(t.clientX, t.clientY);
+  touchActive = true;
+}, { passive: false });
+
+cWrap.addEventListener('touchmove', function(e) {
+  e.preventDefault();
+  var t = e.touches[0];
+  touchTarget = pageToCanvas(t.clientX, t.clientY);
+}, { passive: false });
+
+cWrap.addEventListener('touchend', function(e) {
+  e.preventDefault();
+  if (e.touches.length === 0) { touchActive = false; touchTarget = null; }
+}, { passive: false });
+
+cWrap.addEventListener('touchcancel', function() {
+  touchActive = false; touchTarget = null;
+});
+
+// ── Game state ────────────────────────────────────────────────────────────────
+var STATE   = 'start';
+var score   = 0, lives = 3, level = 1, tick = 0;
+var px = W/2, py = H*0.8, pcool = 0, pinv = 0;
+var bullets  = [], enemies  = [], sparks = [], stars = [];
+var TOUCH_OFFSET_Y = 80;
+
+// Build stars at load
+(function() {
+  for (var i = 0; i < 70; i++) {
     stars.push({
-      x: Math.random()*W,
-      y: Math.random()*H,
+      x: Math.random()*W, y: Math.random()*H,
       r: Math.random()*1.5+0.3,
-      s: Math.random()*1.3+0.3,
-      a: Math.random()*0.8+0.2
+      s: Math.random()*1.0+0.3,
+      a: Math.random()*0.7+0.2
     });
   }
-  updateHUD();
-}
+})();
 
-function updateHUD(){
+function updateHUD() {
   document.getElementById('sScore').textContent = score;
   document.getElementById('sLevel').textContent = level;
   document.getElementById('sLives').textContent = lives;
 }
 
-// ── Enemy definitions ─────────────────────────────────────────────────────────
+function resetGame() {
+  score=0; lives=3; level=1; tick=0;
+  px=W/2; py=H*0.8; pcool=0; pinv=0;
+  bullets.length=0; enemies.length=0; sparks.length=0;
+  touchActive=false; touchTarget=null;
+  updateHUD();
+}
+
+// ── Enemy types ───────────────────────────────────────────────────────────────
 var EDEFS = [
-  { color:'#ff3366', radius:16, maxhp:1, speed:1.8, pts:10, kind:'rock'  },
-  { color:'#ff8800', radius:20, maxhp:2, speed:1.1, pts:25, kind:'ufo'   },
-  { color:'#aa00ff', radius:13, maxhp:1, speed:2.6, pts:15, kind:'gem'   },
-  { color:'#ffdd00', radius:26, maxhp:4, speed:0.6, pts:60, kind:'boss'  },
+  { color:'#ff3366', radius:16, maxhp:1, spd:1.8, pts:10, kind:'rock' },
+  { color:'#ff8800', radius:20, maxhp:2, spd:1.1, pts:25, kind:'ufo'  },
+  { color:'#aa00ff', radius:13, maxhp:1, spd:2.6, pts:15, kind:'gem'  },
+  { color:'#ffdd00', radius:26, maxhp:4, spd:0.6, pts:60, kind:'boss' }
 ];
 
-function spawnEnemy(){
+function spawnEnemy() {
   var def = EDEFS[Math.floor(Math.random()*EDEFS.length)];
   var r   = def.radius;
   enemies.push({
-    x:    r + Math.random()*(W - r*2),
-    y:    -r,
-    vx:   (Math.random()-0.5) * 1.8,
-    vy:   def.speed + level*0.1,
-    rot:  Math.random()*6.28,
-    rs:   (Math.random()-0.5)*0.07,
-    def:  def,
-    hp:   def.maxhp,
-    seed: Math.random()*10
+    x: r + Math.random()*(W-r*2), y: -r,
+    vx: (Math.random()-0.5)*1.8,
+    vy: def.spd + level*0.1,
+    rot: Math.random()*6.28,
+    rs:  (Math.random()-0.5)*0.07,
+    seed: Math.random()*10,
+    def: def, hp: def.maxhp
   });
 }
 
-function addSparks(x, y, color, n){
-  for(var i=0; i<n; i++){
-    var a = Math.random()*6.28;
-    var s = Math.random()*4+1;
-    sparks.push({
-      x:x, y:y,
-      vx: Math.cos(a)*s, vy: Math.sin(a)*s,
-      life:1,
-      decay: Math.random()*0.05+0.02,
-      r: Math.random()*3+1,
-      color: color
-    });
+function addSparks(x, y, color, n) {
+  for (var i=0; i<n; i++) {
+    var a = Math.random()*6.28, spd = Math.random()*4+1;
+    sparks.push({ x:x, y:y, vx:Math.cos(a)*spd, vy:Math.sin(a)*spd,
+      life:1, decay:Math.random()*0.05+0.02, r:Math.random()*3+1, color:color });
   }
 }
 
-// Circle vs circle collision
-function hit(ax,ay,ar, bx,by,br){
+function circHit(ax,ay,ar,bx,by,br) {
   var dx=ax-bx, dy=ay-by;
   return dx*dx+dy*dy < (ar+br)*(ar+br);
 }
 
 // ── Update ────────────────────────────────────────────────────────────────────
-function update(){
-  if(STATE !== 'play') return;
+function update() {
+  if (STATE !== 'play') return;
   tick++;
 
-  // Level
   var nl = 1 + Math.floor(score/200);
-  if(nl !== level){ level=nl; updateHUD(); }
+  if (nl !== level) { level=nl; updateHUD(); }
 
-  // Spawn
-  var every = Math.max(25, 80 - level*5);
-  if(tick % every === 0) spawnEnemy();
+  var every = Math.max(25, 80-level*5);
+  if (tick % every === 0) spawnEnemy();
 
-  // Move plane
   var spd = 4.5 + level*0.08;
-  if((K.ArrowLeft  || K.KeyA || T.left)  && px > 20)    px -= spd;
-  if((K.ArrowRight || K.KeyD || T.right) && px < W-20)  px += spd;
-  if((K.ArrowUp    || K.KeyW || T.up)    && py > 20)    py -= spd;
-  if((K.ArrowDown  || K.KeyS || T.down)  && py < H-20)  py += spd;
+  var mg  = 20;
 
-  // Shoot
-  if(pcool > 0) pcool--;
-  if((K.Space || K.KeyZ || T.fire) && pcool === 0){
-    bullets.push({x:px, y:py-22, vy:-12});
+  if (touchActive && touchTarget) {
+    var tx = Math.max(mg, Math.min(W-mg, touchTarget.x));
+    var ty = Math.max(mg, Math.min(H-mg, touchTarget.y - TOUCH_OFFSET_Y));
+    px += (tx - px) * 0.25;
+    py += (ty - py) * 0.25;
+  } else {
+    if ((K['ArrowLeft']  || K['KeyA']) && px > mg)    px -= spd;
+    if ((K['ArrowRight'] || K['KeyD']) && px < W-mg)  px += spd;
+    if ((K['ArrowUp']    || K['KeyW']) && py > mg)    py -= spd;
+    if ((K['ArrowDown']  || K['KeyS']) && py < H-mg)  py += spd;
+  }
+
+  if (pcool > 0) pcool--;
+  var wantsShoot = touchActive || K['Space'] || K['KeyZ'];
+  if (wantsShoot && pcool === 0) {
+    bullets.push({ x:px, y:py-22 });
     pcool = Math.max(8, 18-level);
+    playShoot();
   }
 
-  // Invincibility
-  if(pinv > 0) pinv--;
+  if (pinv > 0) pinv--;
 
-  // Bullets
-  for(var i=bullets.length-1; i>=0; i--){
-    bullets[i].y += bullets[i].vy;
-    if(bullets[i].y < -10) bullets.splice(i,1);
+  var i, j;
+  for (i=bullets.length-1; i>=0; i--) {
+    bullets[i].y -= 12;
+    if (bullets[i].y < -10) bullets.splice(i,1);
   }
 
-  // Enemies
-  for(var i=enemies.length-1; i>=0; i--){
+  for (i=enemies.length-1; i>=0; i--) {
     var e = enemies[i];
-    e.x  += e.vx;
-    e.y  += e.vy;
-    e.rot += e.rs;
-    // Bounce off walls
-    if(e.x < e.def.radius)   { e.x = e.def.radius;   e.vx = Math.abs(e.vx); }
-    if(e.x > W-e.def.radius) { e.x = W-e.def.radius; e.vx = -Math.abs(e.vx); }
+    e.x += e.vx; e.y += e.vy; e.rot += e.rs;
+    if (e.x < e.def.radius)    { e.x=e.def.radius;    e.vx=Math.abs(e.vx);  }
+    if (e.x > W-e.def.radius)  { e.x=W-e.def.radius;  e.vx=-Math.abs(e.vx); }
 
-    // Check bullet hits
-    var destroyed = false;
-    for(var j=bullets.length-1; j>=0; j--){
-      if(hit(e.x, e.y, e.def.radius*0.85, bullets[j].x, bullets[j].y, 4)){
+    var dead = false;
+    for (j=bullets.length-1; j>=0; j--) {
+      if (circHit(e.x,e.y,e.def.radius*0.85, bullets[j].x,bullets[j].y, 4)) {
         bullets.splice(j,1);
         e.hp--;
         addSparks(e.x, e.y, e.def.color, 5);
-        if(e.hp <= 0){
-          score += e.def.pts;
-          updateHUD();
+        if (e.hp <= 0) {
+          score += e.def.pts; updateHUD();
           addSparks(e.x, e.y, e.def.color, 18);
-          enemies.splice(i,1);
-          destroyed = true;
+          playExplosion();
+          enemies.splice(i,1); dead=true;
         }
         break;
       }
     }
-    if(destroyed) continue;
+    if (dead) continue;
+    if (e.y > H+e.def.radius*2) { enemies.splice(i,1); continue; }
 
-    // Off-screen
-    if(e.y > H + e.def.radius*2){ enemies.splice(i,1); continue; }
-
-    // Hit player
-    if(pinv === 0 && hit(e.x, e.y, e.def.radius*0.7, px, py, 15)){
-      lives--;
-      pinv = 90;
+    if (pinv===0 && circHit(e.x,e.y,e.def.radius*0.7, px,py, 15)) {
+      lives--; pinv=90;
       addSparks(px, py, '#00d4ff', 20);
+      playHurt();
       updateHUD();
-      if(lives <= 0){ endGame(); return; }
+      if (lives <= 0) { endGame(); return; }
     }
   }
 
-  // Sparks
-  for(var i=sparks.length-1; i>=0; i--){
-    var s = sparks[i];
-    s.x += s.vx; s.y += s.vy; s.vy += 0.05;
-    s.life -= s.decay;
-    if(s.life <= 0) sparks.splice(i,1);
+  for (i=sparks.length-1; i>=0; i--) {
+    sparks[i].x += sparks[i].vx; sparks[i].y += sparks[i].vy;
+    sparks[i].vy += 0.05; sparks[i].life -= sparks[i].decay;
+    if (sparks[i].life <= 0) sparks.splice(i,1);
   }
 
-  // Stars scroll
-  for(var i=0; i<stars.length; i++){
+  for (i=0; i<stars.length; i++) {
     stars[i].y += stars[i].s;
-    if(stars[i].y > H){ stars[i].y = 0; stars[i].x = Math.random()*W; }
+    if (stars[i].y > H) { stars[i].y=0; stars[i].x=Math.random()*W; }
   }
 }
 
-// ── Draw ──────────────────────────────────────────────────────────────────────
-function drawPlane(x, y, blink){
-  if(blink) return;
+// ── Draw helpers ──────────────────────────────────────────────────────────────
+function drawBullet(bx, by) {
   ctx.save();
-  ctx.translate(x, y);
+  ctx.shadowBlur=10; ctx.shadowColor='#ffe600';
+  var g = ctx.createLinearGradient(bx, by-18, bx, by);
+  g.addColorStop(0,'#ffe600'); g.addColorStop(1,'rgba(255,220,0,0)');
+  ctx.fillStyle=g;
+  ctx.fillRect(bx-2, by-18, 4, 18);
+  ctx.restore();
+}
 
-  // Engine flame
-  var fh = 8 + Math.random()*9;
-  var gf = ctx.createLinearGradient(0,14,0,14+fh);
-  gf.addColorStop(0,'#ffcc00');
-  gf.addColorStop(1,'rgba(255,80,0,0)');
-  ctx.fillStyle = gf;
-  ctx.shadowBlur = 12; ctx.shadowColor = '#ff8800';
+function drawPlane(x, y, blink) {
+  if (blink) return;
+  ctx.save(); ctx.translate(x, y);
+  // Flame
+  var fl = 7 + Math.random()*9;
+  ctx.shadowBlur=14; ctx.shadowColor='#ff8800';
+  var gf = ctx.createLinearGradient(0,14,0,14+fl);
+  gf.addColorStop(0,'#ffcc00'); gf.addColorStop(1,'rgba(255,100,0,0)');
+  ctx.fillStyle=gf;
   ctx.beginPath();
   ctx.moveTo(-3.5,13); ctx.lineTo(3.5,13);
-  ctx.lineTo(2,13+fh); ctx.lineTo(-2,13+fh);
+  ctx.lineTo(2,13+fl); ctx.lineTo(-2,13+fl);
   ctx.closePath(); ctx.fill();
-
   // Body
-  ctx.shadowBlur = 10; ctx.shadowColor = '#00d4ff';
-  ctx.fillStyle = '#cce8ff';
+  ctx.shadowBlur=10; ctx.shadowColor='#00d4ff'; ctx.fillStyle='#cce8ff';
   ctx.beginPath();
   ctx.moveTo(0,-22);
-  ctx.bezierCurveTo(6,-10, 7,2, 6,13);
-  ctx.lineTo(-6,13);
-  ctx.bezierCurveTo(-7,2, -6,-10, 0,-22);
+  ctx.bezierCurveTo(7,-10,7,2,6,13); ctx.lineTo(-6,13);
+  ctx.bezierCurveTo(-7,2,-7,-10,0,-22);
   ctx.closePath(); ctx.fill();
-
   // Cockpit
-  ctx.fillStyle = '#00d4ff';
-  ctx.shadowColor = '#00d4ff';
+  ctx.fillStyle='#00d4ff'; ctx.shadowColor='#00d4ff';
   ctx.beginPath();
-  ctx.ellipse(0,-8, 4, 8, 0, 0, Math.PI*2);
-  ctx.fill();
-
+  ctx.moveTo(0,-20); ctx.bezierCurveTo(4,-16,5,-8,4,-2);
+  ctx.lineTo(-4,-2); ctx.bezierCurveTo(-5,-8,-4,-16,0,-20);
+  ctx.closePath(); ctx.fill();
   // Wings
-  ctx.shadowBlur = 6; ctx.fillStyle = '#6aaddd';
-  ctx.beginPath();
-  ctx.moveTo(-6,2); ctx.lineTo(-24,12); ctx.lineTo(-16,14); ctx.lineTo(-5,9);
-  ctx.closePath(); ctx.fill();
-  ctx.beginPath();
-  ctx.moveTo(6,2); ctx.lineTo(24,12); ctx.lineTo(16,14); ctx.lineTo(5,9);
-  ctx.closePath(); ctx.fill();
-
-  // Tail
-  ctx.shadowBlur = 4; ctx.fillStyle = '#88bce0';
-  ctx.beginPath();
-  ctx.moveTo(-6,13); ctx.lineTo(-12,22); ctx.lineTo(-4,16);
-  ctx.closePath(); ctx.fill();
-  ctx.beginPath();
-  ctx.moveTo(6,13); ctx.lineTo(12,22); ctx.lineTo(4,16);
-  ctx.closePath(); ctx.fill();
-
+  ctx.shadowBlur=6; ctx.fillStyle='#6aaddd';
+  ctx.beginPath(); ctx.moveTo(-6,2); ctx.lineTo(-24,12); ctx.lineTo(-16,14); ctx.lineTo(-5,9); ctx.closePath(); ctx.fill();
+  ctx.beginPath(); ctx.moveTo(6,2);  ctx.lineTo(24,12);  ctx.lineTo(16,14);  ctx.lineTo(5,9);  ctx.closePath(); ctx.fill();
+  // Tails
+  ctx.shadowBlur=4; ctx.fillStyle='#88bce0';
+  ctx.beginPath(); ctx.moveTo(-6,13); ctx.lineTo(-12,22); ctx.lineTo(-4,16); ctx.closePath(); ctx.fill();
+  ctx.beginPath(); ctx.moveTo(6,13);  ctx.lineTo(12,22);  ctx.lineTo(4,16);  ctx.closePath(); ctx.fill();
   ctx.restore();
 }
 
-function drawEnemy(e){
-  var d = e.def, r = d.radius;
-  ctx.save();
-  ctx.translate(e.x, e.y);
-  ctx.rotate(e.rot);
-  ctx.shadowBlur = 14; ctx.shadowColor = d.color;
-  ctx.fillStyle  = d.color;
-  ctx.strokeStyle = 'rgba(255,255,255,0.55)';
-  ctx.lineWidth = 1.5;
+function drawEnemy(e) {
+  var d=e.def, r=d.radius;
+  ctx.save(); ctx.translate(e.x,e.y); ctx.rotate(e.rot);
+  ctx.shadowBlur=14; ctx.shadowColor=d.color;
+  ctx.fillStyle=d.color; ctx.strokeStyle='rgba(255,255,255,0.5)'; ctx.lineWidth=1.5;
 
-  if(d.kind === 'rock'){
+  if (d.kind==='rock') {
     ctx.beginPath();
-    for(var i=0;i<8;i++){
-      var a = i/8*6.28;
-      var lr = r * (0.6 + Math.sin(i*2+e.seed)*0.38);
-      if(i===0) ctx.moveTo(Math.cos(a)*lr, Math.sin(a)*lr);
-      else       ctx.lineTo(Math.cos(a)*lr, Math.sin(a)*lr);
+    for (var i=0; i<8; i++) {
+      var a=i/8*6.28, lr=r*(0.6+Math.sin(i*2+e.seed)*0.38);
+      if(i===0) ctx.moveTo(Math.cos(a)*lr,Math.sin(a)*lr);
+      else      ctx.lineTo(Math.cos(a)*lr,Math.sin(a)*lr);
     }
     ctx.closePath(); ctx.fill(); ctx.stroke();
 
-  } else if(d.kind === 'ufo'){
-    ctx.beginPath();
-    ctx.ellipse(0, 5, r, r*0.35, 0, 0, 6.28);
-    ctx.fill();
-    ctx.fillStyle = 'rgba(255,255,255,0.2)';
-    ctx.beginPath();
-    ctx.ellipse(0, 1, r*0.5, r*0.4, 0, Math.PI, 0);
-    ctx.fill();
-    var lc = ['#ff0','#0f0','#f0f'];
-    for(var i=-1;i<=1;i++){
-      ctx.fillStyle = lc[i+1];
-      ctx.shadowColor = lc[i+1];
-      ctx.beginPath();
-      ctx.arc(i*r*0.4, 6, 2.5, 0, 6.28);
-      ctx.fill();
+  } else if (d.kind==='ufo') {
+    ctx.save(); ctx.scale(1,0.35);
+    ctx.beginPath(); ctx.arc(0,14,r,0,6.28); ctx.fill();
+    ctx.restore();
+    ctx.beginPath(); ctx.arc(0,2,r*0.52,Math.PI,0); ctx.closePath();
+    ctx.fillStyle='rgba(255,255,255,0.18)'; ctx.fill();
+    var lc=['#ff0','#0f0','#f0f'];
+    for (var li=-1; li<=1; li++) {
+      ctx.fillStyle=lc[li+1]; ctx.shadowColor=lc[li+1];
+      ctx.beginPath(); ctx.arc(li*r*0.38,6,2.5,0,6.28); ctx.fill();
     }
 
-  } else if(d.kind === 'gem'){
+  } else if (d.kind==='gem') {
     ctx.beginPath();
-    ctx.moveTo(0,-r); ctx.lineTo(r*0.6,-r*0.1);
-    ctx.lineTo(r*0.4,r*0.8); ctx.lineTo(-r*0.4,r*0.8);
-    ctx.lineTo(-r*0.6,-r*0.1);
+    ctx.moveTo(0,-r); ctx.lineTo(r*0.65,-r*0.1);
+    ctx.lineTo(r*0.4,r*0.8); ctx.lineTo(-r*0.4,r*0.8); ctx.lineTo(-r*0.65,-r*0.1);
     ctx.closePath(); ctx.fill(); ctx.stroke();
-    ctx.fillStyle = 'rgba(255,255,255,0.25)';
-    ctx.beginPath();
-    ctx.moveTo(0,-r*0.6); ctx.lineTo(r*0.3,0); ctx.lineTo(0,r*0.5); ctx.lineTo(-r*0.3,0);
-    ctx.closePath(); ctx.fill();
+    ctx.fillStyle='rgba(255,255,255,0.25)';
+    ctx.beginPath(); ctx.moveTo(0,-r*0.6); ctx.lineTo(r*0.3,0); ctx.lineTo(0,r*0.5); ctx.lineTo(-r*0.3,0); ctx.closePath(); ctx.fill();
 
-  } else { // boss
+  } else {
     ctx.beginPath();
-    ctx.moveTo(0,r); ctx.lineTo(-r*0.65,-r*0.4);
-    ctx.lineTo(0,-r*0.12); ctx.lineTo(r*0.65,-r*0.4);
+    ctx.moveTo(0,r); ctx.lineTo(-r*0.65,-r*0.4); ctx.lineTo(0,-r*0.12); ctx.lineTo(r*0.65,-r*0.4);
     ctx.closePath(); ctx.fill(); ctx.stroke();
     ctx.shadowBlur=0; ctx.fillStyle='#fff';
-    ctx.font = 'bold '+(r*0.55|0)+'px monospace';
+    ctx.font='bold '+Math.round(r*0.55)+'px monospace';
     ctx.textAlign='center'; ctx.textBaseline='middle';
-    ctx.fillText(e.hp, 0, 0);
+    ctx.fillText(e.hp,0,0);
   }
   ctx.restore();
 }
 
-function drawBullet(b){
+function drawTouchIndicator() {
+  if (!touchActive || !touchTarget) return;
   ctx.save();
-  var g = ctx.createLinearGradient(b.x, b.y-18, b.x, b.y);
-  g.addColorStop(0,'#ffe600');
-  g.addColorStop(1,'rgba(255,230,0,0)');
-  ctx.fillStyle = g;
-  ctx.shadowBlur = 10; ctx.shadowColor = '#ffe600';
-  ctx.fillRect(b.x-2, b.y-18, 4, 18);
+  ctx.globalAlpha=0.22; ctx.strokeStyle='#00d4ff'; ctx.lineWidth=1.5;
+  ctx.beginPath(); ctx.arc(touchTarget.x, touchTarget.y, 18, 0, 6.28); ctx.stroke();
+  ctx.setLineDash([4,4]);
+  ctx.beginPath(); ctx.moveTo(touchTarget.x, touchTarget.y); ctx.lineTo(px, py+10); ctx.stroke();
   ctx.restore();
 }
 
-function render(){
-  // Clear
-  ctx.fillStyle = '#050a14';
-  ctx.fillRect(0, 0, W, H);
+// ── Render ────────────────────────────────────────────────────────────────────
+function render() {
+  ctx.fillStyle='#050a14'; ctx.fillRect(0,0,W,H);
 
-  // Stars
-  for(var i=0; i<stars.length; i++){
-    var s = stars[i];
-    ctx.globalAlpha = s.a;
-    ctx.fillStyle = '#ffffff';
-    ctx.beginPath();
-    ctx.arc(s.x, s.y, s.r, 0, 6.28);
-    ctx.fill();
+  var i;
+  for (i=0; i<stars.length; i++) {
+    ctx.globalAlpha=stars[i].a; ctx.fillStyle='#fff';
+    ctx.beginPath(); ctx.arc(stars[i].x,stars[i].y,stars[i].r,0,6.28); ctx.fill();
   }
-  ctx.globalAlpha = 1;
+  ctx.globalAlpha=1;
 
-  // Gentle nebula glow
-  var nb = ctx.createRadialGradient(W*0.3, H*0.3, 0, W*0.3, H*0.3, W*0.6);
-  nb.addColorStop(0,'rgba(30,0,80,0.3)');
-  nb.addColorStop(1,'rgba(5,10,20,0)');
-  ctx.fillStyle = nb;
-  ctx.fillRect(0,0,W,H);
+  var nb=ctx.createRadialGradient(W*0.3,H*0.3,0,W*0.3,H*0.3,W*0.65);
+  nb.addColorStop(0,'rgba(30,0,80,0.28)'); nb.addColorStop(1,'rgba(5,10,20,0)');
+  ctx.fillStyle=nb; ctx.fillRect(0,0,W,H);
 
-  if(STATE !== 'play') return;
+  if (STATE !== 'play') return;
 
-  // Bullets
-  for(var i=0; i<bullets.length; i++) drawBullet(bullets[i]);
+  for (i=0; i<bullets.length; i++) drawBullet(bullets[i].x, bullets[i].y);
+  for (i=0; i<enemies.length; i++) drawEnemy(enemies[i]);
 
-  // Enemies
-  for(var i=0; i<enemies.length; i++) drawEnemy(enemies[i]);
-
-  // Sparks
-  for(var i=0; i<sparks.length; i++){
-    var s = sparks[i];
-    ctx.save();
-    ctx.globalAlpha = s.life;
-    ctx.fillStyle = s.color;
-    ctx.shadowBlur = 6; ctx.shadowColor = s.color;
-    ctx.beginPath();
-    ctx.arc(s.x, s.y, s.r, 0, 6.28);
-    ctx.fill();
-    ctx.restore();
+  for (i=0; i<sparks.length; i++) {
+    var sp=sparks[i];
+    ctx.save(); ctx.globalAlpha=sp.life; ctx.fillStyle=sp.color;
+    ctx.shadowBlur=6; ctx.shadowColor=sp.color;
+    ctx.beginPath(); ctx.arc(sp.x,sp.y,sp.r,0,6.28); ctx.fill(); ctx.restore();
   }
 
-  // Plane (blink when invincible)
-  var blink = pinv > 0 && (tick % 10) < 5;
+  drawTouchIndicator();
+
+  var blink = pinv>0 && (tick%10)<5;
   drawPlane(px, py, blink);
 }
 
 // ── Game flow ─────────────────────────────────────────────────────────────────
-function startGame(){
+function startGame() {
   resetGame();
-  STATE = 'play';
+  STATE='play';
   document.getElementById('scrStart').classList.add('off');
   document.getElementById('scrOver').classList.add('off');
+  startMusic();
 }
 
-function endGame(){
-  STATE = 'over';
-  document.getElementById('finalScore').textContent = 'SCORE : ' + score;
+function endGame() {
+  STATE='over';
+  stopMusic();
+  document.getElementById('finalScore').textContent='SCORE : '+score;
   document.getElementById('scrOver').classList.remove('off');
+}
+
+function quitGame() {
+  if (STATE !== 'play') return;
+  stopMusic();
+  STATE='start';
+  document.getElementById('scrStart').classList.remove('off');
+  document.getElementById('scrOver').classList.add('off');
+  bullets.length=0; enemies.length=0; sparks.length=0;
+  touchActive=false; touchTarget=null;
 }
 
 document.getElementById('btnStart').addEventListener('click', startGame);
 document.getElementById('btnRestart').addEventListener('click', startGame);
+document.getElementById('btnQuit').addEventListener('click', quitGame);
 
 // ── Main loop ─────────────────────────────────────────────────────────────────
-function loop(){
+function loop() {
   update();
   render();
   requestAnimationFrame(loop);
