@@ -16,7 +16,6 @@ body {
   font-family: monospace;
   color: #fff;
   overflow: hidden;
-  touch-action: none;
   user-select: none;
 }
 #wrapper {
@@ -47,9 +46,12 @@ body {
   border-radius: 3px;
   cursor: pointer;
   font-family: monospace;
-  transition: background 0.1s;
+  /* large touch target */
+  min-width: 44px;
+  min-height: 32px;
 }
-#btnQuit:hover, #btnQuit:active { background: rgba(255,45,120,0.18); }
+#btnQuit:active { background: rgba(255,45,120,0.25); }
+
 #cWrap {
   position: relative;
   width: 100%;
@@ -57,13 +59,15 @@ body {
   border: 2px solid #00d4ff;
   overflow: hidden;
   background: #050a14;
-  cursor: crosshair;
 }
+/* canvas sits behind overlays */
 #c {
   position: absolute;
   top: 0; left: 0;
   width: 100%; height: 100%;
   display: block;
+  cursor: crosshair;
+  touch-action: none; /* prevent scroll on canvas only */
 }
 #touchHint {
   display: none;
@@ -77,18 +81,21 @@ body {
   text-align: center;
 }
 @media (pointer: coarse) { #touchHint { display: block; } }
+
+/* overlays — sit on top of canvas, pointer-events auto so buttons work */
 .ov {
   position: absolute;
   inset: 0;
-  background: rgba(4,8,18,.92);
+  background: rgba(4,8,18,.93);
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 14px;
-  padding: 20px;
+  gap: 16px;
+  padding: 24px;
   text-align: center;
-  z-index: 5;
+  z-index: 10;
+  /* do NOT set touch-action or pointer-events:none here */
 }
 .ov.off { display: none; }
 .ov h1 {
@@ -99,28 +106,33 @@ body {
   line-height: 1.1;
   letter-spacing: 4px;
 }
-.ov h2 { font-size: 12px; color: #ff2d78; letter-spacing: 3px; margin-top: -6px; }
-.ov p { font-size: 12px; color: #aaa; line-height: 2.2; }
+.ov h2 { font-size: 12px; color: #ff2d78; letter-spacing: 3px; margin-top: -8px; }
+.ov p { font-size: 12px; color: #aaa; line-height: 2.2; max-width: 280px; }
 .ov p b { color: #ffe600; }
-.ov p.touch-info { display: none; }
+/* Show/hide instructions by input type */
+.keys-info  { display: block; }
+.touch-info { display: none; }
 @media (pointer: coarse) {
-  .ov p.keys-info  { display: none; }
-  .ov p.touch-info { display: block; }
+  .keys-info  { display: none; }
+  .touch-info { display: block; }
 }
 .ov button {
-  margin-top: 6px;
-  padding: 12px 36px;
+  margin-top: 4px;
+  padding: 14px 40px;
   border: 2px solid #39ff14;
   background: transparent;
   color: #39ff14;
-  font-size: 14px;
+  font-size: 15px;
   letter-spacing: 3px;
   border-radius: 4px;
   cursor: pointer;
-  text-shadow: 0 0 8px #39ff14;
   font-family: monospace;
+  text-shadow: 0 0 8px #39ff14;
+  /* large touch target */
+  min-width: 180px;
+  min-height: 52px;
 }
-.ov button:hover { background: rgba(57,255,20,.14); }
+.ov button:active { background: rgba(57,255,20,.2); }
 #finalScore { font-size: 22px; color: #ffe600; text-shadow: 0 0 12px #ffe600; }
 </style>
 </head>
@@ -135,27 +147,33 @@ body {
   </div>
 
   <div id="cWrap">
+    <!-- canvas receives touch/mouse during gameplay -->
     <canvas id="c"></canvas>
 
+    <!-- overlays: above canvas, buttons fully tappable -->
     <div class="ov" id="scrStart">
       <h1>SKY<br>BLASTER</h1>
       <h2>ARCADE SHOOTER</h2>
+
       <p class="keys-info">
-        <b>Fleches</b> pour bouger<br>
-        <b>ESPACE</b> pour tirer
+        <b>Souris</b> &mdash; deplacer l'avion<br>
+        <b>Clic gauche</b> &mdash; tirer<br>
+        <b>Fleches / ZQSD</b> &mdash; bouger<br>
+        <b>ESPACE</b> &mdash; tirer
       </p>
       <p class="touch-info">
         <b>Pose le doigt</b> sur l'ecran<br>
         L'avion suit ton doigt<br>
         <b>Tir automatique</b>
       </p>
-      <button id="btnStart">JOUER</button>
+
+      <button id="btnStart">&#9654; JOUER</button>
     </div>
 
     <div class="ov off" id="scrOver">
       <h1>GAME<br>OVER</h1>
-      <div id="finalScore">0</div>
-      <button id="btnRestart">REJOUER</button>
+      <div id="finalScore">SCORE : 0</div>
+      <button id="btnRestart">&#8629; REJOUER</button>
     </div>
   </div>
 
@@ -164,218 +182,149 @@ body {
 
 <script>
 // ══════════════════════════════════════════════════════════════════════════════
-//  AUDIO ENGINE  (Web Audio API — no files needed)
+//  AUDIO  (Web Audio API — zero external files)
 // ══════════════════════════════════════════════════════════════════════════════
-var AC = null;          // AudioContext, created on first user gesture
-var musicNodes = [];    // nodes to stop on quit
+var AC = null;
+var musicNodes = [];
 var musicPlaying = false;
+var musicGain = null;
 
 function getAC() {
   if (!AC) {
-    try {
-      AC = new (window.AudioContext || window.webkitAudioContext)();
-    } catch(e) { AC = null; }
+    try { AC = new (window.AudioContext || window.webkitAudioContext)(); }
+    catch(e) { return null; }
   }
-  if (AC && AC.state === 'suspended') AC.resume();
+  if (AC.state === 'suspended') AC.resume();
   return AC;
 }
 
-// ── SFX helpers ───────────────────────────────────────────────────────────────
 function playShoot() {
   var ac = getAC(); if (!ac) return;
-  var osc = ac.createOscillator();
-  var g   = ac.createGain();
+  var osc = ac.createOscillator(), g = ac.createGain();
   osc.connect(g); g.connect(ac.destination);
   osc.type = 'square';
-  osc.frequency.setValueAtTime(880, ac.currentTime);
-  osc.frequency.exponentialRampToValueAtTime(220, ac.currentTime + 0.08);
-  g.gain.setValueAtTime(0.06, ac.currentTime);   // quiet
-  g.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + 0.09);
-  osc.start(ac.currentTime);
-  osc.stop(ac.currentTime + 0.09);
+  osc.frequency.setValueAtTime(760, ac.currentTime);
+  osc.frequency.exponentialRampToValueAtTime(200, ac.currentTime + 0.07);
+  g.gain.setValueAtTime(0.055, ac.currentTime);
+  g.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + 0.08);
+  osc.start(ac.currentTime); osc.stop(ac.currentTime + 0.09);
 }
 
 function playExplosion() {
   var ac = getAC(); if (!ac) return;
-  // noise burst
-  var bufSize = ac.sampleRate * 0.18;
-  var buf = ac.createBuffer(1, bufSize, ac.sampleRate);
-  var data = buf.getChannelData(0);
-  for (var i = 0; i < bufSize; i++) data[i] = (Math.random() * 2 - 1);
-  var src = ac.createBufferSource();
-  src.buffer = buf;
-  var filter = ac.createBiquadFilter();
-  filter.type = 'bandpass';
-  filter.frequency.value = 180;
-  filter.Q.value = 0.8;
+  var len = Math.floor(ac.sampleRate * 0.18);
+  var buf = ac.createBuffer(1, len, ac.sampleRate);
+  var d = buf.getChannelData(0);
+  for (var i=0; i<len; i++) d[i] = Math.random()*2-1;
+  var src = ac.createBufferSource(); src.buffer = buf;
+  var flt = ac.createBiquadFilter(); flt.type='bandpass'; flt.frequency.value=180; flt.Q.value=0.8;
   var g = ac.createGain();
-  src.connect(filter); filter.connect(g); g.connect(ac.destination);
-  g.gain.setValueAtTime(0.12, ac.currentTime);    // quiet
+  src.connect(flt); flt.connect(g); g.connect(ac.destination);
+  g.gain.setValueAtTime(0.11, ac.currentTime);
   g.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + 0.18);
   src.start(ac.currentTime);
 }
 
 function playHurt() {
   var ac = getAC(); if (!ac) return;
-  var osc = ac.createOscillator();
-  var g   = ac.createGain();
+  var osc = ac.createOscillator(), g = ac.createGain();
   osc.connect(g); g.connect(ac.destination);
   osc.type = 'sawtooth';
   osc.frequency.setValueAtTime(200, ac.currentTime);
   osc.frequency.exponentialRampToValueAtTime(80, ac.currentTime + 0.2);
-  g.gain.setValueAtTime(0.08, ac.currentTime);
+  g.gain.setValueAtTime(0.075, ac.currentTime);
   g.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + 0.22);
-  osc.start(ac.currentTime);
-  osc.stop(ac.currentTime + 0.22);
+  osc.start(ac.currentTime); osc.stop(ac.currentTime + 0.22);
 }
-
-// ── Electronic music (procedural) ─────────────────────────────────────────────
-// Architecture: kick + bass arp + hi-hat + lead arp, all looped via ScriptProcessor / scheduled notes
-var musicGain = null;
 
 function startMusic() {
   var ac = getAC(); if (!ac || musicPlaying) return;
   musicPlaying = true;
-
-  // Master gain for music (lower than SFX)
-  musicGain = ac.createGain();
-  musicGain.gain.value = 0.18;
+  musicGain = ac.createGain(); musicGain.gain.value = 0.18;
   musicGain.connect(ac.destination);
   musicNodes.push(musicGain);
 
-  var BPM   = 138;
-  var STEP  = 60 / BPM / 4;  // 16th note duration in seconds
-  var steps = 16;             // steps per bar
+  var BPM=138, STEP=60/BPM/4, steps=16;
 
-  // ── Kick drum ──────────────────────────────────────────────────────────────
-  function scheduleKick(t) {
-    var osc = ac.createOscillator();
-    var g   = ac.createGain();
-    osc.connect(g); g.connect(musicGain);
-    osc.type = 'sine';
-    osc.frequency.setValueAtTime(150, t);
-    osc.frequency.exponentialRampToValueAtTime(40, t + 0.12);
-    g.gain.setValueAtTime(0.9, t);
-    g.gain.exponentialRampToValueAtTime(0.001, t + 0.18);
-    osc.start(t); osc.stop(t + 0.2);
+  function kick(t) {
+    var o=ac.createOscillator(), g=ac.createGain();
+    o.connect(g); g.connect(musicGain); o.type='sine';
+    o.frequency.setValueAtTime(150,t); o.frequency.exponentialRampToValueAtTime(40,t+0.12);
+    g.gain.setValueAtTime(0.9,t); g.gain.exponentialRampToValueAtTime(0.001,t+0.18);
+    o.start(t); o.stop(t+0.2);
   }
-
-  // ── Snare ─────────────────────────────────────────────────────────────────
-  function scheduleSnare(t) {
-    var bufSize = Math.floor(ac.sampleRate * 0.1);
-    var buf = ac.createBuffer(1, bufSize, ac.sampleRate);
-    var d   = buf.getChannelData(0);
-    for (var i = 0; i < bufSize; i++) d[i] = Math.random() * 2 - 1;
-    var src = ac.createBufferSource(); src.buffer = buf;
-    var flt = ac.createBiquadFilter(); flt.type = 'highpass'; flt.frequency.value = 1200;
-    var g   = ac.createGain();
+  function snare(t) {
+    var len=Math.floor(ac.sampleRate*0.1), buf=ac.createBuffer(1,len,ac.sampleRate);
+    var d=buf.getChannelData(0); for(var i=0;i<len;i++) d[i]=Math.random()*2-1;
+    var src=ac.createBufferSource(); src.buffer=buf;
+    var flt=ac.createBiquadFilter(); flt.type='highpass'; flt.frequency.value=1200;
+    var g=ac.createGain();
     src.connect(flt); flt.connect(g); g.connect(musicGain);
-    g.gain.setValueAtTime(0.5, t);
-    g.gain.exponentialRampToValueAtTime(0.001, t + 0.1);
+    g.gain.setValueAtTime(0.5,t); g.gain.exponentialRampToValueAtTime(0.001,t+0.1);
     src.start(t);
   }
-
-  // ── Hi-hat ────────────────────────────────────────────────────────────────
-  function scheduleHat(t, vol) {
-    var bufSize = Math.floor(ac.sampleRate * 0.04);
-    var buf = ac.createBuffer(1, bufSize, ac.sampleRate);
-    var d   = buf.getChannelData(0);
-    for (var i = 0; i < bufSize; i++) d[i] = Math.random() * 2 - 1;
-    var src = ac.createBufferSource(); src.buffer = buf;
-    var flt = ac.createBiquadFilter(); flt.type = 'highpass'; flt.frequency.value = 7000;
-    var g   = ac.createGain();
+  function hat(t, vol) {
+    var len=Math.floor(ac.sampleRate*0.04), buf=ac.createBuffer(1,len,ac.sampleRate);
+    var d=buf.getChannelData(0); for(var i=0;i<len;i++) d[i]=Math.random()*2-1;
+    var src=ac.createBufferSource(); src.buffer=buf;
+    var flt=ac.createBiquadFilter(); flt.type='highpass'; flt.frequency.value=7000;
+    var g=ac.createGain();
     src.connect(flt); flt.connect(g); g.connect(musicGain);
-    g.gain.setValueAtTime(vol || 0.3, t);
-    g.gain.exponentialRampToValueAtTime(0.001, t + 0.04);
+    g.gain.setValueAtTime(vol||0.3,t); g.gain.exponentialRampToValueAtTime(0.001,t+0.04);
     src.start(t);
   }
-
-  // ── Bass synth ────────────────────────────────────────────────────────────
-  var bassNotes = [55, 55, 55, 55,  82, 82, 55, 55,  65, 65, 55, 55,  73, 55, 55, 55];
-  function scheduleBass(t, freq) {
-    var osc = ac.createOscillator();
-    var g   = ac.createGain();
-    var flt = ac.createBiquadFilter(); flt.type = 'lowpass'; flt.frequency.value = 400;
-    osc.connect(flt); flt.connect(g); g.connect(musicGain);
-    osc.type = 'sawtooth';
-    osc.frequency.value = freq;
-    g.gain.setValueAtTime(0.55, t);
-    g.gain.exponentialRampToValueAtTime(0.001, t + STEP * 1.8);
-    osc.start(t); osc.stop(t + STEP * 2);
+  var bassN=[55,55,55,55,82,82,55,55,65,65,55,55,73,55,55,55];
+  function bass(t,freq) {
+    var o=ac.createOscillator(), flt=ac.createBiquadFilter(), g=ac.createGain();
+    o.connect(flt); flt.connect(g); g.connect(musicGain);
+    o.type='sawtooth'; o.frequency.value=freq;
+    flt.type='lowpass'; flt.frequency.value=400;
+    g.gain.setValueAtTime(0.55,t); g.gain.exponentialRampToValueAtTime(0.001,t+STEP*1.8);
+    o.start(t); o.stop(t+STEP*2);
+  }
+  var leadN=[220,0,261,0,293,0,261,0,246,0,220,0,0,0,329,0];
+  function lead(t,freq) {
+    if(!freq) return;
+    var o=ac.createOscillator(), flt=ac.createBiquadFilter(), g=ac.createGain();
+    o.connect(flt); flt.connect(g); g.connect(musicGain);
+    o.type='square'; o.frequency.value=freq;
+    flt.type='bandpass'; flt.frequency.value=freq*2; flt.Q.value=2;
+    g.gain.setValueAtTime(0.18,t); g.gain.exponentialRampToValueAtTime(0.001,t+STEP*1.4);
+    o.start(t); o.stop(t+STEP*1.5);
   }
 
-  // ── Lead arp ──────────────────────────────────────────────────────────────
-  var leadNotes = [
-    220, 0,  261, 0,  293, 0,  261, 0,
-    246, 0,  220, 0,    0, 0,  329, 0
-  ];
-  function scheduleLead(t, freq) {
-    if (!freq) return;
-    var osc = ac.createOscillator();
-    var g   = ac.createGain();
-    var flt = ac.createBiquadFilter(); flt.type = 'bandpass'; flt.frequency.value = freq * 2; flt.Q.value = 2;
-    osc.connect(flt); flt.connect(g); g.connect(musicGain);
-    osc.type = 'square';
-    osc.frequency.value = freq;
-    g.gain.setValueAtTime(0.18, t);
-    g.gain.exponentialRampToValueAtTime(0.001, t + STEP * 1.4);
-    osc.start(t); osc.stop(t + STEP * 1.5);
-  }
-
-  // ── Scheduler ─────────────────────────────────────────────────────────────
-  var scheduleAhead = 0.15;
-  var nextBarTime   = ac.currentTime + 0.05;
-  var barPhase      = 0;   // which bar pattern we are in (for variation)
-
-  function scheduleBar(startT) {
-    for (var s = 0; s < steps; s++) {
-      var t = startT + s * STEP;
-
-      // Kick: beat 1 and 3 (steps 0, 8) + extra on 12
-      if (s === 0 || s === 8 || s === 12) scheduleKick(t);
-      // Snare: beat 2 and 4 (steps 4, 12)
-      if (s === 4 || s === 12) scheduleSnare(t);
-      // Hi-hat every 2 steps, accent on even
-      if (s % 2 === 0) scheduleHat(t, s % 4 === 0 ? 0.35 : 0.18);
-      // Open hat on offbeats
-      if (s === 2 || s === 6 || s === 10 || s === 14) scheduleHat(t, 0.1);
-
-      // Bass on every step
-      scheduleBass(t, bassNotes[s]);
-
-      // Lead arp every bar, with variation
-      var ln = leadNotes[s];
-      if (barPhase % 2 === 1 && ln) ln *= 1.5; // octave up every other bar
-      scheduleLead(t, ln);
+  var nextBar=ac.currentTime+0.05, phase=0;
+  function schedBar(t0) {
+    for(var s=0;s<steps;s++) {
+      var t=t0+s*STEP;
+      if(s===0||s===8||s===12) kick(t);
+      if(s===4||s===12) snare(t);
+      if(s%2===0) hat(t, s%4===0?0.35:0.18);
+      if(s===2||s===6||s===10||s===14) hat(t,0.1);
+      bass(t,bassN[s]);
+      lead(t, phase%2===1&&leadN[s] ? leadN[s]*1.5 : leadN[s]);
     }
-    barPhase++;
+    phase++;
   }
-
-  function tick() {
-    if (!musicPlaying) return;
-    while (nextBarTime < ac.currentTime + scheduleAhead) {
-      scheduleBar(nextBarTime);
-      nextBarTime += steps * STEP;
-    }
-    setTimeout(tick, 50);
+  function sched() {
+    if(!musicPlaying) return;
+    while(nextBar < ac.currentTime+0.15) { schedBar(nextBar); nextBar+=steps*STEP; }
+    setTimeout(sched,50);
   }
-  tick();
+  sched();
 }
 
 function stopMusic() {
   musicPlaying = false;
   if (musicGain) {
-    try { musicGain.gain.setValueAtTime(musicGain.gain.value, AC.currentTime);
-          musicGain.gain.exponentialRampToValueAtTime(0.001, AC.currentTime + 0.3); }
-    catch(e) {}
+    try {
+      musicGain.gain.setValueAtTime(musicGain.gain.value, AC.currentTime);
+      musicGain.gain.exponentialRampToValueAtTime(0.001, AC.currentTime+0.3);
+    } catch(e) {}
   }
-  // Hard stop after fade
   setTimeout(function() {
-    for (var i = 0; i < musicNodes.length; i++) {
-      try { musicNodes[i].disconnect(); } catch(e) {}
-    }
-    musicNodes = [];
-    musicGain  = null;
+    for(var i=0;i<musicNodes.length;i++) try{musicNodes[i].disconnect();}catch(e){}
+    musicNodes=[]; musicGain=null;
   }, 400);
 }
 
@@ -384,78 +333,94 @@ function stopMusic() {
 // ══════════════════════════════════════════════════════════════════════════════
 var canvas = document.getElementById('c');
 var ctx    = canvas.getContext('2d');
-var W = 440, H = 600;
-canvas.width = W; canvas.height = H;
+var W=440, H=600;
+canvas.width=W; canvas.height=H;
 
-function getScale() {
-  return W / canvas.getBoundingClientRect().width;
-}
+function getScale() { return W / canvas.getBoundingClientRect().width; }
 
-// ── Keyboard ─────────────────────────────────────────────────────────────────
+// ── Keyboard ──────────────────────────────────────────────────────────────────
 var K = {};
 document.addEventListener('keydown', function(e) {
-  K[e.code] = true;
-  if (e.code === 'Space' || e.code.indexOf('Arrow') === 0) e.preventDefault();
-  if (e.code === 'Escape') quitGame();
+  K[e.code]=true;
+  if(e.code==='Space'||e.code.indexOf('Arrow')===0) e.preventDefault();
+  if(e.code==='Escape') quitGame();
 });
-document.addEventListener('keyup', function(e) { K[e.code] = false; });
+document.addEventListener('keyup', function(e) { K[e.code]=false; });
 
-// ── Touch ─────────────────────────────────────────────────────────────────────
+// ── Mouse (desktop) ───────────────────────────────────────────────────────────
+var mouseX = W/2, mouseY = H*0.8;
+var mouseDown = false;
+var mouseInCanvas = false;
+
+canvas.addEventListener('mousemove', function(e) {
+  if(STATE!=='play') return;
+  var sc = getScale();
+  var r  = canvas.getBoundingClientRect();
+  mouseX = (e.clientX - r.left) * sc;
+  mouseY = (e.clientY - r.top)  * sc;
+  mouseInCanvas = true;
+});
+canvas.addEventListener('mouseenter', function() { mouseInCanvas=true; });
+canvas.addEventListener('mouseleave', function() { mouseInCanvas=false; mouseDown=false; });
+canvas.addEventListener('mousedown',  function(e) { if(e.button===0) mouseDown=true; });
+canvas.addEventListener('mouseup',    function(e) { if(e.button===0) mouseDown=false; });
+// prevent right-click menu on canvas
+canvas.addEventListener('contextmenu', function(e) { e.preventDefault(); });
+
+// ── Touch (mobile) — attached to canvas only, NOT the overlay wrapper ─────────
+// This is the KEY FIX: listeners on canvas, not cWrap, so overlay buttons work
 var touchTarget = null;
 var touchActive = false;
-var cWrap = document.getElementById('cWrap');
+var TOUCH_OFFSET_Y = 80;
 
 function pageToCanvas(cx, cy) {
-  var rect = canvas.getBoundingClientRect();
-  var sc   = getScale();
-  return { x: (cx - rect.left) * sc, y: (cy - rect.top) * sc };
+  var r=canvas.getBoundingClientRect(), sc=getScale();
+  return { x:(cx-r.left)*sc, y:(cy-r.top)*sc };
 }
 
-cWrap.addEventListener('touchstart', function(e) {
+canvas.addEventListener('touchstart', function(e) {
+  // Only intercept during gameplay — otherwise let taps bubble to overlay buttons
+  if(STATE!=='play') return;
   e.preventDefault();
-  var t = e.touches[0];
-  touchTarget = pageToCanvas(t.clientX, t.clientY);
-  touchActive = true;
-}, { passive: false });
+  var t=e.touches[0];
+  touchTarget=pageToCanvas(t.clientX,t.clientY);
+  touchActive=true;
+}, { passive:false });
 
-cWrap.addEventListener('touchmove', function(e) {
+canvas.addEventListener('touchmove', function(e) {
+  if(STATE!=='play') return;
   e.preventDefault();
-  var t = e.touches[0];
-  touchTarget = pageToCanvas(t.clientX, t.clientY);
-}, { passive: false });
+  var t=e.touches[0];
+  touchTarget=pageToCanvas(t.clientX,t.clientY);
+}, { passive:false });
 
-cWrap.addEventListener('touchend', function(e) {
+canvas.addEventListener('touchend', function(e) {
+  if(STATE!=='play') return;
   e.preventDefault();
-  if (e.touches.length === 0) { touchActive = false; touchTarget = null; }
-}, { passive: false });
+  if(e.touches.length===0) { touchActive=false; touchTarget=null; }
+}, { passive:false });
 
-cWrap.addEventListener('touchcancel', function() {
-  touchActive = false; touchTarget = null;
+canvas.addEventListener('touchcancel', function() {
+  touchActive=false; touchTarget=null;
 });
 
 // ── Game state ────────────────────────────────────────────────────────────────
-var STATE   = 'start';
-var score   = 0, lives = 3, level = 1, tick = 0;
-var px = W/2, py = H*0.8, pcool = 0, pinv = 0;
-var bullets  = [], enemies  = [], sparks = [], stars = [];
-var TOUCH_OFFSET_Y = 80;
+var STATE  = 'start';
+var score=0, lives=3, level=1, tick=0;
+var px=W/2, py=H*0.8, pcool=0, pinv=0;
+var bullets=[], enemies=[], sparks=[], stars=[];
 
-// Build stars at load
-(function() {
-  for (var i = 0; i < 70; i++) {
-    stars.push({
-      x: Math.random()*W, y: Math.random()*H,
-      r: Math.random()*1.5+0.3,
-      s: Math.random()*1.0+0.3,
-      a: Math.random()*0.7+0.2
-    });
-  }
+(function buildStars() {
+  for(var i=0;i<70;i++) stars.push({
+    x:Math.random()*W, y:Math.random()*H,
+    r:Math.random()*1.5+0.3, s:Math.random()*1.0+0.3, a:Math.random()*0.7+0.2
+  });
 })();
 
 function updateHUD() {
-  document.getElementById('sScore').textContent = score;
-  document.getElementById('sLevel').textContent = level;
-  document.getElementById('sLives').textContent = lives;
+  document.getElementById('sScore').textContent=score;
+  document.getElementById('sLevel').textContent=level;
+  document.getElementById('sLives').textContent=lives;
 }
 
 function resetGame() {
@@ -463,173 +428,160 @@ function resetGame() {
   px=W/2; py=H*0.8; pcool=0; pinv=0;
   bullets.length=0; enemies.length=0; sparks.length=0;
   touchActive=false; touchTarget=null;
+  mouseDown=false;
   updateHUD();
 }
 
-// ── Enemy types ───────────────────────────────────────────────────────────────
-var EDEFS = [
-  { color:'#ff3366', radius:16, maxhp:1, spd:1.8, pts:10, kind:'rock' },
-  { color:'#ff8800', radius:20, maxhp:2, spd:1.1, pts:25, kind:'ufo'  },
-  { color:'#aa00ff', radius:13, maxhp:1, spd:2.6, pts:15, kind:'gem'  },
-  { color:'#ffdd00', radius:26, maxhp:4, spd:0.6, pts:60, kind:'boss' }
+var EDEFS=[
+  {color:'#ff3366',radius:16,maxhp:1,spd:1.8,pts:10,kind:'rock'},
+  {color:'#ff8800',radius:20,maxhp:2,spd:1.1,pts:25,kind:'ufo'},
+  {color:'#aa00ff',radius:13,maxhp:1,spd:2.6,pts:15,kind:'gem'},
+  {color:'#ffdd00',radius:26,maxhp:4,spd:0.6,pts:60,kind:'boss'}
 ];
 
 function spawnEnemy() {
-  var def = EDEFS[Math.floor(Math.random()*EDEFS.length)];
-  var r   = def.radius;
-  enemies.push({
-    x: r + Math.random()*(W-r*2), y: -r,
-    vx: (Math.random()-0.5)*1.8,
-    vy: def.spd + level*0.1,
-    rot: Math.random()*6.28,
-    rs:  (Math.random()-0.5)*0.07,
-    seed: Math.random()*10,
-    def: def, hp: def.maxhp
-  });
+  var def=EDEFS[Math.floor(Math.random()*EDEFS.length)], r=def.radius;
+  enemies.push({ x:r+Math.random()*(W-r*2), y:-r,
+    vx:(Math.random()-0.5)*1.8, vy:def.spd+level*0.1,
+    rot:Math.random()*6.28, rs:(Math.random()-0.5)*0.07,
+    seed:Math.random()*10, def:def, hp:def.maxhp });
 }
 
-function addSparks(x, y, color, n) {
-  for (var i=0; i<n; i++) {
-    var a = Math.random()*6.28, spd = Math.random()*4+1;
-    sparks.push({ x:x, y:y, vx:Math.cos(a)*spd, vy:Math.sin(a)*spd,
-      life:1, decay:Math.random()*0.05+0.02, r:Math.random()*3+1, color:color });
+function addSparks(x,y,color,n) {
+  for(var i=0;i<n;i++) {
+    var a=Math.random()*6.28, spd=Math.random()*4+1;
+    sparks.push({x:x,y:y,vx:Math.cos(a)*spd,vy:Math.sin(a)*spd,
+      life:1,decay:Math.random()*0.05+0.02,r:Math.random()*3+1,color:color});
   }
 }
 
 function circHit(ax,ay,ar,bx,by,br) {
-  var dx=ax-bx, dy=ay-by;
-  return dx*dx+dy*dy < (ar+br)*(ar+br);
+  var dx=ax-bx,dy=ay-by; return dx*dx+dy*dy<(ar+br)*(ar+br);
 }
 
 // ── Update ────────────────────────────────────────────────────────────────────
 function update() {
-  if (STATE !== 'play') return;
+  if(STATE!=='play') return;
   tick++;
 
-  var nl = 1 + Math.floor(score/200);
-  if (nl !== level) { level=nl; updateHUD(); }
+  var nl=1+Math.floor(score/200);
+  if(nl!==level){level=nl;updateHUD();}
 
-  var every = Math.max(25, 80-level*5);
-  if (tick % every === 0) spawnEnemy();
+  var every=Math.max(25,80-level*5);
+  if(tick%every===0) spawnEnemy();
 
-  var spd = 4.5 + level*0.08;
-  var mg  = 20;
+  var spd=4.5+level*0.08, mg=20;
 
-  if (touchActive && touchTarget) {
-    var tx = Math.max(mg, Math.min(W-mg, touchTarget.x));
-    var ty = Math.max(mg, Math.min(H-mg, touchTarget.y - TOUCH_OFFSET_Y));
-    px += (tx - px) * 0.25;
-    py += (ty - py) * 0.25;
+  if(touchActive && touchTarget) {
+    // Mobile: plane follows finger, offset above
+    var tx=Math.max(mg,Math.min(W-mg,touchTarget.x));
+    var ty=Math.max(mg,Math.min(H-mg,touchTarget.y-TOUCH_OFFSET_Y));
+    px+=(tx-px)*0.25; py+=(ty-py)*0.25;
+  } else if(mouseInCanvas) {
+    // Desktop mouse: smooth follow
+    var mxc=Math.max(mg,Math.min(W-mg,mouseX));
+    var myc=Math.max(mg,Math.min(H-mg,mouseY));
+    px+=(mxc-px)*0.18; py+=(myc-py)*0.18;
   } else {
-    if ((K['ArrowLeft']  || K['KeyA']) && px > mg)    px -= spd;
-    if ((K['ArrowRight'] || K['KeyD']) && px < W-mg)  px += spd;
-    if ((K['ArrowUp']    || K['KeyW']) && py > mg)    py -= spd;
-    if ((K['ArrowDown']  || K['KeyS']) && py < H-mg)  py += spd;
+    // Keyboard fallback
+    if((K['ArrowLeft'] ||K['KeyA'])&&px>mg)   px-=spd;
+    if((K['ArrowRight']||K['KeyD'])&&px<W-mg) px+=spd;
+    if((K['ArrowUp']   ||K['KeyW'])&&py>mg)   py-=spd;
+    if((K['ArrowDown'] ||K['KeyS'])&&py<H-mg) py+=spd;
   }
 
-  if (pcool > 0) pcool--;
-  var wantsShoot = touchActive || K['Space'] || K['KeyZ'];
-  if (wantsShoot && pcool === 0) {
-    bullets.push({ x:px, y:py-22 });
-    pcool = Math.max(8, 18-level);
+  // Shoot: auto on touch, left-click or Space on desktop
+  if(pcool>0) pcool--;
+  var wantsShoot = touchActive || mouseDown || K['Space'] || K['KeyZ'];
+  if(wantsShoot && pcool===0) {
+    bullets.push({x:px, y:py-22});
+    pcool=Math.max(8,18-level);
     playShoot();
   }
 
-  if (pinv > 0) pinv--;
+  if(pinv>0) pinv--;
 
-  var i, j;
-  for (i=bullets.length-1; i>=0; i--) {
-    bullets[i].y -= 12;
-    if (bullets[i].y < -10) bullets.splice(i,1);
+  var i,j;
+  for(i=bullets.length-1;i>=0;i--) {
+    bullets[i].y-=12;
+    if(bullets[i].y<-10) bullets.splice(i,1);
   }
 
-  for (i=enemies.length-1; i>=0; i--) {
-    var e = enemies[i];
-    e.x += e.vx; e.y += e.vy; e.rot += e.rs;
-    if (e.x < e.def.radius)    { e.x=e.def.radius;    e.vx=Math.abs(e.vx);  }
-    if (e.x > W-e.def.radius)  { e.x=W-e.def.radius;  e.vx=-Math.abs(e.vx); }
+  for(i=enemies.length-1;i>=0;i--) {
+    var e=enemies[i];
+    e.x+=e.vx; e.y+=e.vy; e.rot+=e.rs;
+    if(e.x<e.def.radius)   {e.x=e.def.radius;   e.vx=Math.abs(e.vx);}
+    if(e.x>W-e.def.radius) {e.x=W-e.def.radius; e.vx=-Math.abs(e.vx);}
 
-    var dead = false;
-    for (j=bullets.length-1; j>=0; j--) {
-      if (circHit(e.x,e.y,e.def.radius*0.85, bullets[j].x,bullets[j].y, 4)) {
-        bullets.splice(j,1);
-        e.hp--;
-        addSparks(e.x, e.y, e.def.color, 5);
-        if (e.hp <= 0) {
-          score += e.def.pts; updateHUD();
-          addSparks(e.x, e.y, e.def.color, 18);
+    var dead=false;
+    for(j=bullets.length-1;j>=0;j--) {
+      if(circHit(e.x,e.y,e.def.radius*0.85,bullets[j].x,bullets[j].y,4)) {
+        bullets.splice(j,1); e.hp--;
+        addSparks(e.x,e.y,e.def.color,5);
+        if(e.hp<=0){
+          score+=e.def.pts; updateHUD();
+          addSparks(e.x,e.y,e.def.color,18);
           playExplosion();
           enemies.splice(i,1); dead=true;
         }
         break;
       }
     }
-    if (dead) continue;
-    if (e.y > H+e.def.radius*2) { enemies.splice(i,1); continue; }
-
-    if (pinv===0 && circHit(e.x,e.y,e.def.radius*0.7, px,py, 15)) {
+    if(dead) continue;
+    if(e.y>H+e.def.radius*2){enemies.splice(i,1);continue;}
+    if(pinv===0&&circHit(e.x,e.y,e.def.radius*0.7,px,py,15)){
       lives--; pinv=90;
-      addSparks(px, py, '#00d4ff', 20);
-      playHurt();
-      updateHUD();
-      if (lives <= 0) { endGame(); return; }
+      addSparks(px,py,'#00d4ff',20); playHurt(); updateHUD();
+      if(lives<=0){endGame();return;}
     }
   }
 
-  for (i=sparks.length-1; i>=0; i--) {
-    sparks[i].x += sparks[i].vx; sparks[i].y += sparks[i].vy;
-    sparks[i].vy += 0.05; sparks[i].life -= sparks[i].decay;
-    if (sparks[i].life <= 0) sparks.splice(i,1);
+  for(i=sparks.length-1;i>=0;i--) {
+    sparks[i].x+=sparks[i].vx; sparks[i].y+=sparks[i].vy;
+    sparks[i].vy+=0.05; sparks[i].life-=sparks[i].decay;
+    if(sparks[i].life<=0) sparks.splice(i,1);
   }
 
-  for (i=0; i<stars.length; i++) {
-    stars[i].y += stars[i].s;
-    if (stars[i].y > H) { stars[i].y=0; stars[i].x=Math.random()*W; }
+  for(i=0;i<stars.length;i++){
+    stars[i].y+=stars[i].s;
+    if(stars[i].y>H){stars[i].y=0;stars[i].x=Math.random()*W;}
   }
 }
 
-// ── Draw helpers ──────────────────────────────────────────────────────────────
-function drawBullet(bx, by) {
+// ── Draw ──────────────────────────────────────────────────────────────────────
+function drawBullet(bx,by) {
   ctx.save();
   ctx.shadowBlur=10; ctx.shadowColor='#ffe600';
-  var g = ctx.createLinearGradient(bx, by-18, bx, by);
+  var g=ctx.createLinearGradient(bx,by-18,bx,by);
   g.addColorStop(0,'#ffe600'); g.addColorStop(1,'rgba(255,220,0,0)');
-  ctx.fillStyle=g;
-  ctx.fillRect(bx-2, by-18, 4, 18);
+  ctx.fillStyle=g; ctx.fillRect(bx-2,by-18,4,18);
   ctx.restore();
 }
 
-function drawPlane(x, y, blink) {
-  if (blink) return;
-  ctx.save(); ctx.translate(x, y);
-  // Flame
-  var fl = 7 + Math.random()*9;
+function drawPlane(x,y,blink) {
+  if(blink) return;
+  ctx.save(); ctx.translate(x,y);
+  var fl=7+Math.random()*9;
   ctx.shadowBlur=14; ctx.shadowColor='#ff8800';
-  var gf = ctx.createLinearGradient(0,14,0,14+fl);
+  var gf=ctx.createLinearGradient(0,14,0,14+fl);
   gf.addColorStop(0,'#ffcc00'); gf.addColorStop(1,'rgba(255,100,0,0)');
   ctx.fillStyle=gf;
-  ctx.beginPath();
-  ctx.moveTo(-3.5,13); ctx.lineTo(3.5,13);
-  ctx.lineTo(2,13+fl); ctx.lineTo(-2,13+fl);
-  ctx.closePath(); ctx.fill();
-  // Body
+  ctx.beginPath(); ctx.moveTo(-3.5,13); ctx.lineTo(3.5,13);
+  ctx.lineTo(2,13+fl); ctx.lineTo(-2,13+fl); ctx.closePath(); ctx.fill();
+
   ctx.shadowBlur=10; ctx.shadowColor='#00d4ff'; ctx.fillStyle='#cce8ff';
-  ctx.beginPath();
-  ctx.moveTo(0,-22);
+  ctx.beginPath(); ctx.moveTo(0,-22);
   ctx.bezierCurveTo(7,-10,7,2,6,13); ctx.lineTo(-6,13);
-  ctx.bezierCurveTo(-7,2,-7,-10,0,-22);
-  ctx.closePath(); ctx.fill();
-  // Cockpit
+  ctx.bezierCurveTo(-7,2,-7,-10,0,-22); ctx.closePath(); ctx.fill();
+
   ctx.fillStyle='#00d4ff'; ctx.shadowColor='#00d4ff';
-  ctx.beginPath();
-  ctx.moveTo(0,-20); ctx.bezierCurveTo(4,-16,5,-8,4,-2);
-  ctx.lineTo(-4,-2); ctx.bezierCurveTo(-5,-8,-4,-16,0,-20);
-  ctx.closePath(); ctx.fill();
-  // Wings
+  ctx.beginPath(); ctx.moveTo(0,-20); ctx.bezierCurveTo(4,-16,5,-8,4,-2);
+  ctx.lineTo(-4,-2); ctx.bezierCurveTo(-5,-8,-4,-16,0,-20); ctx.closePath(); ctx.fill();
+
   ctx.shadowBlur=6; ctx.fillStyle='#6aaddd';
   ctx.beginPath(); ctx.moveTo(-6,2); ctx.lineTo(-24,12); ctx.lineTo(-16,14); ctx.lineTo(-5,9); ctx.closePath(); ctx.fill();
   ctx.beginPath(); ctx.moveTo(6,2);  ctx.lineTo(24,12);  ctx.lineTo(16,14);  ctx.lineTo(5,9);  ctx.closePath(); ctx.fill();
-  // Tails
+
   ctx.shadowBlur=4; ctx.fillStyle='#88bce0';
   ctx.beginPath(); ctx.moveTo(-6,13); ctx.lineTo(-12,22); ctx.lineTo(-4,16); ctx.closePath(); ctx.fill();
   ctx.beginPath(); ctx.moveTo(6,13);  ctx.lineTo(12,22);  ctx.lineTo(4,16);  ctx.closePath(); ctx.fill();
@@ -637,43 +589,41 @@ function drawPlane(x, y, blink) {
 }
 
 function drawEnemy(e) {
-  var d=e.def, r=d.radius;
+  var d=e.def,r=d.radius;
   ctx.save(); ctx.translate(e.x,e.y); ctx.rotate(e.rot);
   ctx.shadowBlur=14; ctx.shadowColor=d.color;
   ctx.fillStyle=d.color; ctx.strokeStyle='rgba(255,255,255,0.5)'; ctx.lineWidth=1.5;
 
-  if (d.kind==='rock') {
+  if(d.kind==='rock'){
     ctx.beginPath();
-    for (var i=0; i<8; i++) {
-      var a=i/8*6.28, lr=r*(0.6+Math.sin(i*2+e.seed)*0.38);
+    for(var i=0;i<8;i++){
+      var a=i/8*6.28,lr=r*(0.6+Math.sin(i*2+e.seed)*0.38);
       if(i===0) ctx.moveTo(Math.cos(a)*lr,Math.sin(a)*lr);
       else      ctx.lineTo(Math.cos(a)*lr,Math.sin(a)*lr);
     }
     ctx.closePath(); ctx.fill(); ctx.stroke();
-
-  } else if (d.kind==='ufo') {
+  } else if(d.kind==='ufo'){
     ctx.save(); ctx.scale(1,0.35);
-    ctx.beginPath(); ctx.arc(0,14,r,0,6.28); ctx.fill();
-    ctx.restore();
+    ctx.beginPath(); ctx.arc(0,14,r,0,6.28); ctx.fill(); ctx.restore();
     ctx.beginPath(); ctx.arc(0,2,r*0.52,Math.PI,0); ctx.closePath();
     ctx.fillStyle='rgba(255,255,255,0.18)'; ctx.fill();
     var lc=['#ff0','#0f0','#f0f'];
-    for (var li=-1; li<=1; li++) {
+    for(var li=-1;li<=1;li++){
       ctx.fillStyle=lc[li+1]; ctx.shadowColor=lc[li+1];
       ctx.beginPath(); ctx.arc(li*r*0.38,6,2.5,0,6.28); ctx.fill();
     }
-
-  } else if (d.kind==='gem') {
+  } else if(d.kind==='gem'){
     ctx.beginPath();
     ctx.moveTo(0,-r); ctx.lineTo(r*0.65,-r*0.1);
     ctx.lineTo(r*0.4,r*0.8); ctx.lineTo(-r*0.4,r*0.8); ctx.lineTo(-r*0.65,-r*0.1);
     ctx.closePath(); ctx.fill(); ctx.stroke();
     ctx.fillStyle='rgba(255,255,255,0.25)';
-    ctx.beginPath(); ctx.moveTo(0,-r*0.6); ctx.lineTo(r*0.3,0); ctx.lineTo(0,r*0.5); ctx.lineTo(-r*0.3,0); ctx.closePath(); ctx.fill();
-
+    ctx.beginPath(); ctx.moveTo(0,-r*0.6); ctx.lineTo(r*0.3,0);
+    ctx.lineTo(0,r*0.5); ctx.lineTo(-r*0.3,0); ctx.closePath(); ctx.fill();
   } else {
     ctx.beginPath();
-    ctx.moveTo(0,r); ctx.lineTo(-r*0.65,-r*0.4); ctx.lineTo(0,-r*0.12); ctx.lineTo(r*0.65,-r*0.4);
+    ctx.moveTo(0,r); ctx.lineTo(-r*0.65,-r*0.4);
+    ctx.lineTo(0,-r*0.12); ctx.lineTo(r*0.65,-r*0.4);
     ctx.closePath(); ctx.fill(); ctx.stroke();
     ctx.shadowBlur=0; ctx.fillStyle='#fff';
     ctx.font='bold '+Math.round(r*0.55)+'px monospace';
@@ -683,85 +633,88 @@ function drawEnemy(e) {
   ctx.restore();
 }
 
-function drawTouchIndicator() {
-  if (!touchActive || !touchTarget) return;
+function drawPointer() {
+  // Show a subtle crosshair at mouse position on desktop
+  if(!mouseInCanvas || touchActive) return;
   ctx.save();
-  ctx.globalAlpha=0.22; ctx.strokeStyle='#00d4ff'; ctx.lineWidth=1.5;
-  ctx.beginPath(); ctx.arc(touchTarget.x, touchTarget.y, 18, 0, 6.28); ctx.stroke();
-  ctx.setLineDash([4,4]);
-  ctx.beginPath(); ctx.moveTo(touchTarget.x, touchTarget.y); ctx.lineTo(px, py+10); ctx.stroke();
+  ctx.strokeStyle='rgba(0,212,255,0.35)';
+  ctx.lineWidth=1;
+  ctx.beginPath(); ctx.moveTo(mouseX-10,mouseY); ctx.lineTo(mouseX+10,mouseY); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(mouseX,mouseY-10); ctx.lineTo(mouseX,mouseY+10); ctx.stroke();
+  ctx.beginPath(); ctx.arc(mouseX,mouseY,5,0,6.28); ctx.stroke();
   ctx.restore();
 }
 
-// ── Render ────────────────────────────────────────────────────────────────────
+function drawTouchIndicator() {
+  if(!touchActive||!touchTarget) return;
+  ctx.save();
+  ctx.globalAlpha=0.22; ctx.strokeStyle='#00d4ff'; ctx.lineWidth=1.5;
+  ctx.beginPath(); ctx.arc(touchTarget.x,touchTarget.y,18,0,6.28); ctx.stroke();
+  ctx.setLineDash([4,4]);
+  ctx.beginPath(); ctx.moveTo(touchTarget.x,touchTarget.y); ctx.lineTo(px,py+10); ctx.stroke();
+  ctx.restore();
+}
+
 function render() {
   ctx.fillStyle='#050a14'; ctx.fillRect(0,0,W,H);
-
   var i;
-  for (i=0; i<stars.length; i++) {
+  for(i=0;i<stars.length;i++){
     ctx.globalAlpha=stars[i].a; ctx.fillStyle='#fff';
     ctx.beginPath(); ctx.arc(stars[i].x,stars[i].y,stars[i].r,0,6.28); ctx.fill();
   }
   ctx.globalAlpha=1;
-
   var nb=ctx.createRadialGradient(W*0.3,H*0.3,0,W*0.3,H*0.3,W*0.65);
   nb.addColorStop(0,'rgba(30,0,80,0.28)'); nb.addColorStop(1,'rgba(5,10,20,0)');
   ctx.fillStyle=nb; ctx.fillRect(0,0,W,H);
 
-  if (STATE !== 'play') return;
+  if(STATE!=='play') return;
 
-  for (i=0; i<bullets.length; i++) drawBullet(bullets[i].x, bullets[i].y);
-  for (i=0; i<enemies.length; i++) drawEnemy(enemies[i]);
+  for(i=0;i<bullets.length;i++) drawBullet(bullets[i].x,bullets[i].y);
+  for(i=0;i<enemies.length;i++) drawEnemy(enemies[i]);
 
-  for (i=0; i<sparks.length; i++) {
+  for(i=0;i<sparks.length;i++){
     var sp=sparks[i];
     ctx.save(); ctx.globalAlpha=sp.life; ctx.fillStyle=sp.color;
     ctx.shadowBlur=6; ctx.shadowColor=sp.color;
     ctx.beginPath(); ctx.arc(sp.x,sp.y,sp.r,0,6.28); ctx.fill(); ctx.restore();
   }
 
+  drawPointer();
   drawTouchIndicator();
 
-  var blink = pinv>0 && (tick%10)<5;
-  drawPlane(px, py, blink);
+  var blink=pinv>0&&(tick%10)<5;
+  drawPlane(px,py,blink);
 }
 
 // ── Game flow ─────────────────────────────────────────────────────────────────
 function startGame() {
-  resetGame();
-  STATE='play';
+  resetGame(); STATE='play';
   document.getElementById('scrStart').classList.add('off');
   document.getElementById('scrOver').classList.add('off');
   startMusic();
 }
 
 function endGame() {
-  STATE='over';
-  stopMusic();
+  STATE='over'; stopMusic();
   document.getElementById('finalScore').textContent='SCORE : '+score;
   document.getElementById('scrOver').classList.remove('off');
 }
 
 function quitGame() {
-  if (STATE !== 'play') return;
-  stopMusic();
-  STATE='start';
+  if(STATE!=='play') return;
+  stopMusic(); STATE='start';
+  bullets.length=0; enemies.length=0; sparks.length=0;
+  touchActive=false; touchTarget=null; mouseDown=false;
   document.getElementById('scrStart').classList.remove('off');
   document.getElementById('scrOver').classList.add('off');
-  bullets.length=0; enemies.length=0; sparks.length=0;
-  touchActive=false; touchTarget=null;
 }
 
 document.getElementById('btnStart').addEventListener('click', startGame);
 document.getElementById('btnRestart').addEventListener('click', startGame);
 document.getElementById('btnQuit').addEventListener('click', quitGame);
 
-// ── Main loop ─────────────────────────────────────────────────────────────────
-function loop() {
-  update();
-  render();
-  requestAnimationFrame(loop);
-}
+// ── Loop ──────────────────────────────────────────────────────────────────────
+function loop() { update(); render(); requestAnimationFrame(loop); }
 loop();
 </script>
 </body>
